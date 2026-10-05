@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>My To-Do List</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: white;
+            margin: 0;
+            padding: 30px;
+        }
+
+        .container {
+            width: 600px;
+            max-width: 90%;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .box {
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            margin: 8px 0;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .message {
+            margin-top: 10px;
+        }
+
+        .todo-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .todo-input input {
+            flex: 1;
+        }
+
+        .todo-input button {
+            margin-top: 0;
+        }
+
+        .todo-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f1f1f1;
+            padding: 12px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+
+        .delete {
+            background: #d33;
+            color: white;
+            border: none;
+            margin-top: 0;
+        }
+
+        .logout {
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>My To-Do List</h1>
+
+        <!-- REGISTER -->
+        <div id="registerBox" class="box">
+
+            <h2>Register</h2>
+
+            <input
+                id="registerUsername"
+                type="text"
+                placeholder="Username"
+            >
+
+            <input
+                id="registerPassword"
+                type="password"
+                placeholder="Password"
+            >
+
+            <button onclick="register()">
+                Register
+            </button>
+
+            <p id="registerMessage" class="message"></p>
+
+        </div>
+
+
+        <!-- LOGIN -->
+        <div id="loginBox" class="box">
+
+            <h2>Login</h2>
+
+            <input
+                id="loginUsername"
+                type="text"
+                placeholder="Username"
+            >
+
+            <input
+                id="loginPassword"
+                type="password"
+                placeholder="Password"
+            >
+
+            <button onclick="login()">
+                Login
+            </button>
+
+            <p id="loginMessage" class="message"></p>
+
+        </div>
+
+
+        <!-- TODO APP -->
+        <div id="todoBox" class="box hidden">
+
+            <h2>
+                Welcome,
+                <span id="username"></span>
+            </h2>
+
+            <div class="todo-input">
+
+                <input
+                    id="todoInput"
+                    type="text"
+                    placeholder="Enter a task..."
+                >
+
+                <button onclick="addTodo()">
+                    Add
+                </button>
+
+            </div>
+
+            <div id="todoList"></div>
+
+            <button
+                class="logout"
+                onclick="logout()"
+            >
+                Logout
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        // ==================== REGISTER ====================
+
+        async function register() {
+
+            const username =
+                document.getElementById("registerUsername").value;
+
+            const password =
+                document.getElementById("registerPassword").value;
+
+            const message =
+                document.getElementById("registerMessage");
+
+            const response = await fetch("/api/register", {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    username,
+                    password
+                })
+            });
+
+            const data = await response.json();
+
+            message.textContent =
+                data.message || data.error;
+
+            if (response.ok) {
+
+                document.getElementById("registerUsername").value = "";
+                document.getElementById("registerPassword").value = "";
+
+                document.getElementById("loginUsername").value =
+                    username;
+            }
+        }
+
+
+        // ==================== LOGIN ====================
+
+        async function login() {
+
+            const username =
+                document.getElementById("loginUsername").value;
+
+            const password =
+                document.getElementById("loginPassword").value;
+
+            const message =
+                document.getElementById("loginMessage");
+
+            const response = await fetch("/api/login", {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    username,
+                    password
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+
+                message.textContent =
+                    data.error;
+
+                return;
+            }
+
+            document.getElementById("registerBox")
+                .classList.add("hidden");
+
+            document.getElementById("loginBox")
+                .classList.add("hidden");
+
+            document.getElementById("todoBox")
+                .classList.remove("hidden");
+
+            document.getElementById("username")
+                .textContent = data.username;
+
+            message.textContent = "";
+
+            loadTodos();
+        }
+
+
+        // ==================== LOAD TODOS ====================
+
+        async function loadTodos() {
+
+            const response =
+                await fetch("/api/todos");
+
+            if (!response.ok) {
+                return;
+            }
+
+            const todos =
+                await response.json();
+
+            const list =
+                document.getElementById("todoList");
+
+            list.innerHTML = "";
+
+            todos.forEach(todo => {
+
+                const item =
+                    document.createElement("div");
+
+                item.className = "todo-item";
+
+                item.innerHTML = `
+                    <span>${escapeHtml(todo.task)}</span>
+
+                    <button
+                        class="delete"
+                        onclick="deleteTodo(${todo.id})"
+                    >
+                        Delete
+                    </button>
+                `;
+
+                list.appendChild(item);
+            });
+        }
+
+
+        // ==================== ADD TODO ====================
+
+        async function addTodo() {
+
+            const input =
+                document.getElementById("todoInput");
+
+            const task =
+                input.value.trim();
+
+            if (!task) {
+                return;
+            }
+
+            const response = await fetch("/api/todos", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    task
+                })
+            });
+
+            if (response.ok) {
+
+                input.value = "";
+
+                loadTodos();
+            }
+        }
+
+
+        // ==================== DELETE TODO ====================
+
+        async function deleteTodo(id) {
+
+            const response =
+                await fetch(`/api/todos/${id}`, {
+                    method: "DELETE"
+                });
+
+            if (response.ok) {
+                loadTodos();
+            }
+        }
+
+
+        // ==================== LOGOUT ====================
+
+        async function logout() {
+
+            await fetch("/api/logout", {
+                method: "POST"
+            });
+
+            document.getElementById("todoBox")
+                .classList.add("hidden");
+
+            document.getElementById("registerBox")
+                .classList.remove("hidden");
+
+            document.getElementById("loginBox")
+                .classList.remove("hidden");
+
+            document.getElementById("username")
+                .textContent = "";
+
+            document.getElementById("todoList")
+                .innerHTML = "";
+        }
+
+
+        // ==================== CHECK LOGIN ====================
+
+        async function checkLogin() {
+
+            const response =
+                await fetch("/api/me");
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data =
+                await response.json();
+
+            document.getElementById("registerBox")
+                .classList.add("hidden");
+
+            document.getElementById("loginBox")
+                .classList.add("hidden");
+
+            document.getElementById("todoBox")
+                .classList.remove("hidden");
+
+            document.getElementById("username")
+                .textContent = data.username;
+
+            loadTodos();
+        }
+
+
+        // ==================== SECURITY ====================
+
+        function escapeHtml(text) {
+
+            const div =
+                document.createElement("div");
+
+            div.textContent = text;
+
+            return div.innerHTML;
+        }
+
+
+        // ==================== START ====================
+
+        checkLogin();
+
+    </script>
+
+</body>
+
+</html>
